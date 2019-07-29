@@ -30,9 +30,9 @@ separador <- function(dados,variavel_separada,wide){
     dado_grafico13$chaves <- as.factor(dado_grafico13$chaves)
   }
   dado_grafico13$Valores <- as.numeric(dado_grafico13$Valores)
-  dado_grafico13$chaves <- na.exclude(dado_grafico13$chaves)
-  dado_grafico13$Var_X <- na.exclude(dado_grafico13$Var_X)
-  dado_grafico13$Valores <- na.exclude(dado_grafico13$Valores)
+  # dado_grafico13$chaves <- na.exclude(dado_grafico13$chaves)
+  # dado_grafico13$Var_X <- na.exclude(dado_grafico13$Var_X)
+  # dado_grafico13$Valores <- na.exclude(dado_grafico13$Valores)
   return(dado_grafico13)
 }
 
@@ -136,7 +136,7 @@ return(p)
 }
 
 
-gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte){
+gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
   # Lista de argumentos
   # if(exists("base$chaves")){
   #   cat("Base positiva e operante\n\n")
@@ -177,13 +177,13 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte){
     # }
   # }
   
-  p<-p+geom_hline(yintercept = 0)+
-      geom_text(aes(y=Valores,
-                    label=round(Valores,digits = 2),
-                    x=posicao),
-                size=3,
+  p <- p + geom_hline(yintercept = 0) +
+      geom_text(aes(y = Valores,
+                    label = round(Valores,digits = 2),
+                    x = posicao),
+                size = tamanho_fonte,
                 nudge_y = 0.01,
-                hjust = "outward")+
+                hjust = "outward") +
     # geom_point(aes(y=Valores),size=2)+
 #     labs(title=toupper("Gráfico 13. Resultado primário do setor público consolidado \n acumulado em 12 meses - % do PIB
 # "),
@@ -206,5 +206,5 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte){
   p<-p+labs(title = titulo, caption=fonte)
 
  # p2<-p+scale_color_manual(values=cores)
-  return(p+tema)
+  return(p + tema)
 }

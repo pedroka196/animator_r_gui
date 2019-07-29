@@ -63,6 +63,7 @@ shinyServer(function(input, output,session) {
     dados_csv <- NULL
   }
   cat("\n\n\n",a,"\n\n")
+  dados_csv <- as.data.frame(dados_csv)
   return(dados_csv)
   
   #return(dados_csv)
@@ -135,7 +136,7 @@ shinyServer(function(input, output,session) {
    input1 <- NULL
    csv_valido <- tipo_dado()
    data_path <- input$arquivo$datapath
-  if(!is.na(csv_valido)){
+  if(!is.null(csv_valido)){
     
   if(csv_valido == "xls") {
     rotulo <- "Escolha a planilha"
@@ -187,7 +188,7 @@ shinyServer(function(input, output,session) {
     tabela1 <- NULL
     dados <- dados_csv()
     dados_graph <- separador(dados,input$VariaveisX,input$Dados_Wide)
-    if(!is.na(dados)){
+    if(!is.null(dados)){
        tabela1 <- rbind.data.frame(head(dados_graph),tail(dados_graph))
     }
     
@@ -231,9 +232,9 @@ shinyServer(function(input, output,session) {
    dados <- dados_csv()
    dados_graph <- separador(dados, input$VariaveisX,input$Dados_Wide)
     # escolhas <- c("Data","Número Real","Número Inteiro")
-   if(input$Dados_Wide==F & input$tipo_dado == "Data"){
-     dados_graph$Var_X <- as.Date.numeric(as.integer(grafico_4_sep$Var_X),origin = "1900-01-01")
-   }
+   # if( input$Dados_Wide == F & input$tipo_dado == "Data") {
+   #   dados_graph$Var_X <- as.Date(as.integer(dados_graph$Var_X),origin = "1900-01-01")
+   # }
    variaveis <- input$VariaveisY
    titulo = input$titulo_grafico
    fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
@@ -244,7 +245,19 @@ shinyServer(function(input, output,session) {
                      variaveis = variaveis,
                      tipos = input$tipo_grafico,
                      titulo = titulo,
-                     fonte = fonte)
+                     fonte = fonte,
+                     tamanho_fonte = input$tamanho_texto)
+    
+    # p1 = p1 + theme()
+    if(input$tipo_grafico == "linha"){
+      p1 = p1+geom_line(size=input$grafico_linha)
+    }
+    if(input$tipo_grafico == "ponto"){
+      p1 = p1+geom_point(size=input$grafico_linha)
+    }
+    if(input$tira_legenda == T){
+      p1 = p1 + theme(legend.position = "none")
+    }
     
     return(p1)
  })
@@ -252,10 +265,25 @@ shinyServer(function(input, output,session) {
  #### Tipo do gráfico ####
  output$graficos_tipo <- renderUI({
    tipos <- c("linha","barra","ponto")
-   radioButtons(inputId = "tipo_grafico",
+   input1 <- radioButtons(inputId = "tipo_grafico",
                 label = "Qual o tipo do gráfico?",
                 choices = tipos,
                 inline = T)
+   input2 <- sliderInput(inputId = "grafico_linha",
+                         label = "Qual tamanho da linha?",
+                         min = 0,
+                         max = 10,
+                         value = 1,
+                         round = F)
+   input3 <- sliderInput(inputId = "tamanho_texto",
+                         label = "Qual tamanho dos rótulos numéricos?",
+                         min = 0,
+                         max = 10,
+                         value = 1,
+                         round = F)
+   input4 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
+   
+   list(input1,input2,input3, input4)
  })
  #### Output do nome dos gráficos ####
  output$graficos_nome <- renderUI({
@@ -281,9 +309,9 @@ shinyServer(function(input, output,session) {
  
  #### Output do gif animado do gráfico ####
  output$grafico_animado <- renderImage({
-   outfile <- tempfile(fileext='.gif')
+   outfile <- tempfile(fileext = '.gif')
    
-   if(gif_animado$anima == F){
+   if (gif_animado$anima == F) {
      return()
    }
    
