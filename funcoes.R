@@ -5,7 +5,8 @@ library(tidyverse)
 library(zoo)
 library(xlsx)
 library(colorspace)
-# library(RColorBrewer)
+library(rlang)
+library(RColorBrewer)
 # library(gridExtra)
 # library(grid)
 # library(extrafont)
@@ -36,10 +37,34 @@ separador <- function(dados,variavel_separada,wide){
   return(dado_grafico13)
 }
 
+separador2 <- function(dados,variavel_separada,grupo){
+  indice <- match(variavel_separada,names(dados))
+  nomes <- names(dados)
+  nomes[indice] <- "Var_X"
+  names(dados) <- nomes
+  
+  if(wide == T) {
+    dado_grafico13 <- dados %>%
+      gather(key = chaves, value = Valores,-Var_X) %>%
+      mutate(chaves = as.factor(chaves))
+  }
+  else {
+    dado_grafico13 <- dados %>%
+      gather(key = chaves, value = Valores,-Var_X)
+    
+    names(dado_grafico13) <- c("chaves","Var_X","Valores")
+    dado_grafico13$chaves <- as.factor(dado_grafico13$chaves)
+  }
+  dado_grafico13$Valores <- as.numeric(dado_grafico13$Valores)
+  # dado_grafico13$chaves <- na.exclude(dado_grafico13$chaves)
+  # dado_grafico13$Var_X <- na.exclude(dado_grafico13$Var_X)
+  # dado_grafico13$Valores <- na.exclude(dado_grafico13$Valores)
+  return(dado_grafico13)
+}
 
-gerador_grafico <-function(X,...,tipos,nomes){
+
+gerador_grafico <-function(Base,X,Y,tipos,nome,grupos){
   # Lista de argumentos
-  Y<-list(...)
   
   # Tamanho dos argumentos
   tamanho_argumentos <- length(tipos)
@@ -106,7 +131,7 @@ for(i in 1:tamanho){
 tema <- theme(line = element_line(),
               axis.line.x = element_line(),
               axis.line.y = element_line(),
-              title = element_text(family = "Calibri Light",size = 12,hjust=0.5),
+              title = element_text(family = "Calibri",size = 12,hjust=0.5),
               plot.margin = unit(c(0.5,0.5,0.5,0.5),"cm"),
               plot.caption = element_text(family = "Cambria",hjust=0.5),
               legend.key = element_blank())
@@ -136,7 +161,9 @@ return(p)
 }
 
 
-gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
+gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte,rotulo_acompanha){
+  cores<-c("#0C648C","#D2988F","#85AEC3","#BB615C","#CD8E86","#C98B87","#9ABBCE","#d73027",
+           "#fdae61","#5aae61")
   # Lista de argumentos
   # if(exists("base$chaves")){
   #   cat("Base positiva e operante\n\n")
@@ -144,6 +171,11 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
   # else{
   #   stop("Essa base não tem chave")
   # }
+  
+  cores_usadas <- cores[length(variaveis)]
+  if(!exists("rotulo_acompanha")){
+    rotulo_acompanha = T
+  }
   
 
   #if(variaveis %in% unique(base$chaves)){
@@ -157,10 +189,18 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
   if(classe_Var_X[1] == "POSIXct" | classe_Var_X[1] == "POSIXt"){
     base_usada$Var_X <- as.Date(base_usada$Var_X)
   }
-    
-  p<-base_usada %>%
-    mutate(posicao = max(Var_X)) %>%
-    ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+  
+  if(rotulo_acompanha == T){
+    p<-base_usada %>%
+      mutate(posicaoX = Var_X,posicaoY = ifelse(Valores>0,1.1*Valores,0.9*Valores)) %>%
+      ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+  }
+  else{
+    p<-base_usada %>%
+      mutate(posicaoX = max(Var_X),posicaoY = ifelse(Valores>0,Valores+0.1*Valores,Valores-0.1*Valores)) %>%
+      ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+  }
+  
   
   #for(i in length(tipos)){
     if(tipos == "linha"){
@@ -170,25 +210,16 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
       p<-p+geom_point()
     }
     if(tipos =="barra"){
-      p<-p+geom_col()
+      p<-p+geom_col(position = "identity")
     }
-    # else{
-    #   p<-p+geom_line()
-    # }
-  # }
   
   p <- p + geom_hline(yintercept = 0) +
-      geom_text(aes(y = Valores,
-                    label = round(Valores,digits = 2),
-                    x = posicao),
+      geom_text(aes(y = posicaoY,
+                    label = format(round(Valores,digits = 2),big.mark = ".",decimal.mark = ","),
+                    x = posicaoX),
                 size = tamanho_fonte,
-                nudge_y = 0.01,
-                hjust = "outward") +
-    # geom_point(aes(y=Valores),size=2)+
-#     labs(title=toupper("Gráfico 13. Resultado primário do setor público consolidado \n acumulado em 12 meses - % do PIB
-# "),
-#          subtitle = "Ano: {frame_along}",
-#          caption="Fonte: Banco Central. Elaboração: IFI")+
+                nudge_y = 0.1,
+                nudge_x = +1) +
     theme(#title = element_text(size=12),
       legend.position = "bottom",
       legend.title = element_blank(),
@@ -204,7 +235,79 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte){
                 legend.key = element_blank())
 
   p<-p+labs(title = titulo, caption=fonte)
+  
+  #p <- p + scale_fill_manual(cores_usadas) + scale_color_manual(cores_usadas)
 
  # p2<-p+scale_color_manual(values=cores)
   return(p + tema)
+}
+
+gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanho_fonte){
+  base <- as.data.frame(base)
+  valores <- c(" ","(",")")
+  substituto <- c("_","_","_")
+  names(base) <- sub(pattern = " ",replacement = "_",x = names(base))
+  X <- gsub(pattern = " ",replacement = "_",x = X)
+  Y <- gsub(pattern = " ",replacement = "_",x = Y)
+  var_grupo <- gsub(pattern = " ",replacement = "_",x = var_grupo)
+  
+  #var_grupo <- 
+  #grupos <- gsub(pattern = " ",replacement = "_",x = grupos)
+  
+    ### !!sym
+  base_usada <- base %>%
+    filter((!!sym(var_grupo)) %in% grupos) %>%
+    mutate(Posicao = X) %>%
+    select(X,Y,var_grupo,Posicao)
+  
+  # base_usada[Y] <- as.numeric(base_usada[Y])
+  
+  
+  
+  #print()
+  
+  p <- base_usada %>%
+    group_by((!!sym(var_grupo))) %>%
+    ggplot(aes_string(x=X,y=Y,color=var_grupo,fill=var_grupo))
+  
+  ### Tipo de gráfico
+  if(tipos == "linha"){
+    p<-p+geom_line()
+  }
+  if(tipos == "ponto"){
+    p<-p+geom_point()
+  }
+  if(tipos =="barra"){
+    p<-p+geom_col()
+  }
+  
+  p <- p + geom_hline(yintercept = 0) +
+    geom_text(aes(y = (!!sym(Y)),
+                  label = round((!!sym(Y)),digits = 2),
+                  x = (!!sym(X))),
+              size = tamanho_fonte,
+              nudge_y = 0.01,
+              nudge_x = -0.5#,
+              #hjust = "outward"
+              ) +
+    
+    theme(#title = element_text(size=12),
+      legend.position = "bottom",
+      legend.title = element_blank(),
+      axis.title = element_blank())+
+    coord_cartesian(clip="off")
+  
+  tema <- theme(line = element_line(),
+                axis.line.x = element_line(),
+                axis.line.y = element_line(),
+                title = element_text(family = "Calibri Light",size = 14,hjust=0.5),
+                plot.margin = unit(c(0.5,1,0.5,0.5),"cm"),
+                plot.caption = element_text(family = "Cambria",hjust=0.5),
+                legend.key = element_blank())
+  
+  p<-p+labs(title = titulo, caption=fonte)
+  
+  
+  
+  return(p)
 }

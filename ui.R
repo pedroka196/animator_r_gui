@@ -29,7 +29,8 @@ shinyUI(fluidPage(
                                    uiOutput("linhas"),
                                    #numericInput("numero_linhas","Numero de colunas",value = 1),
                                    uiOutput("selecionador"),
-                                   uiOutput("seleciona_Y")),
+                                   uiOutput("seleciona_Y"),
+                                   uiOutput("seleciona_grupos")),
                       mainPanel(
                         uiOutput("contents"),
                         uiOutput("contents2")

@@ -1,6 +1,8 @@
-pacotes_necessarios <- c("ggplot2","gganimate","gifski","tidyverse","zoo","xlsx","shiny","readxl","tidyverse","shinythemes")
+pacotes_necessarios <- c("ggplot2","gganimate","gifski","tidyverse","zoo","xlsx","shiny","readxl","tidyverse","shinythemes","viridis","wesanderson","ggrepel")
 
 lista_instalados <- pacotes_necessarios %in% rownames(installed.packages())
+
+options(scipen = 999)
 
 for(i in length(lista_instalados)){
   if(lista_instalados[i]==F){
@@ -51,9 +53,10 @@ shinyServer(function(input, output,session) {
   if(a == "csv"){
    dados_csv <- as.data.frame(read.csv(file = inFile$datapath,
                          header = T,
-                         skip = input$pula_linha-1,
+                         skip = input$pula_linha,
                          sep = input$escolha,
-                         nrows = input$ultima_linha))
+                         nrows = input$ultima_linha,
+                         dec = input$escolhas_decimal))
    
    # if(ncol(dados_csv) == 1){
    #  dados_csv <- read.csv(file = inFile$datapath,header = T,sep = ";")
@@ -89,6 +92,12 @@ shinyServer(function(input, output,session) {
                            inline = T,
                            selected = T)
     
+    input3 <- radioButtons(inputId = "Dados_Grupos",
+                           label = "Grupo de dados??",
+                           choices = c(T,F),
+                           inline = T,
+                           selected = F)
+    
     # input3 <- selectInput(inputId = "VariaveisY",
     #                       label = "Selecione Y",
     #                       choices = names(dados),
@@ -112,6 +121,13 @@ shinyServer(function(input, output,session) {
                            label = "Selecione Y",
                            choices = names(dados),
                            multiple = T)
+     
+     if(input$Dados_Grupos == T){
+       input2 <- selectInput(inputId = "grupos",
+                             label = "Selecione os grupos de dados",
+                             choices = names(dados),
+                             multiple = F)
+      }
      }
      
      else{
@@ -129,11 +145,26 @@ shinyServer(function(input, output,session) {
    }
    list(input1,input2)
  })
+ 
+ #### Output grupos ####
+ output$seleciona_grupos <- renderUI({
+   input1 <- NULL
+   dados <- dados_csv()
+   if(!is.null(dados)){
+     lista_valores <- unique(dados[input$grupos])
+     input1 <- selectInput(inputId = "grupos_selecionados",
+                           label = "Quais grupos deseja selecionar?",
+                           choices = lista_valores,
+                           multiple = T)
+   }
+   list(input1)
+ })
  ####
  ### Daqui para baixo tem dados de acesso a dados
  #### Seleção da planilha ou do separador####
  output$selecao_dados  <- renderUI({
    input1 <- NULL
+   input2 <- NULL
    csv_valido <- tipo_dado()
    data_path <- input$arquivo$datapath
   if(!is.null(csv_valido)){
@@ -145,13 +176,17 @@ shinyServer(function(input, output,session) {
    if(csv_valido == "csv") {
      rotulo <- "Escolha o separador"
      escolhas <- c(",",";")
+     escolhas_decimal <- c(",",".")
+     input2 <- selectizeInput(inputId = "separa_decimal",
+                              label = "Qual separador de decimal?",
+                              choices = escolhas_decimal)
    }
    input1<-selectizeInput(inputId = "escolha",
                   label = rotulo,
                   choices = escolhas)
   }
    
-   list(input1)
+   list(input1,input2)
  })
  # ### Separador do CSV
  #### Seleção das linhas ####
@@ -173,7 +208,7 @@ shinyServer(function(input, output,session) {
     }
     input1 <- numericInput(inputId = "pula_linha",
                            label = rotulo1,
-                           value = 1,
+                           value = 0,
                            max = numero_linhas,
                            width = 100)
     input2 <- numericInput(inputId = "ultima_linha",
@@ -205,7 +240,7 @@ shinyServer(function(input, output,session) {
   output$contents <- renderTable({
     tabela1 <- NULL
     dados <- dados_csv()
-    if(!is.na(dados)){
+    if(!is.null(dados)){
       tabela1 <- rbind.data.frame(head(dados),tail(dados))
       # tabela2 <- "-------------------------------------"
       # tabela3 <- rbind.data.frame(head(dados_graph),tail(dados))
@@ -231,22 +266,46 @@ shinyServer(function(input, output,session) {
  grafico_gerado <- reactive({
    dados <- dados_csv()
    dados_graph <- separador(dados, input$VariaveisX,input$Dados_Wide)
+   cores<-c("#0C648C","#D2988F","#85AEC3","#BB615C","#CD8E86","#C98B87","#9ABBCE","#d73027",
+            "#fdae61","#5aae61")
     # escolhas <- c("Data","Número Real","Número Inteiro")
    # if( input$Dados_Wide == F & input$tipo_dado == "Data") {
    #   dados_graph$Var_X <- as.Date(as.integer(dados_graph$Var_X),origin = "1900-01-01")
    # }
-   variaveis <- input$VariaveisY
-   titulo = input$titulo_grafico
-   fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
-   
-   # gerador_grafico(X = dadosX,Y=dadosY,tipos = "linha",nomes = "UAU")
+   if(input$Dados_Grupos == F){
+     variaveis <- input$VariaveisY
+     titulo = input$titulo_grafico
+     fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
+     
+     # gerador_grafico(X = dadosX,Y=dadosY,tipos = "linha",nomes = "UAU")
    
     p1 <- gerador_grafico_2(base = dados_graph,
                      variaveis = variaveis,
                      tipos = input$tipo_grafico,
                      titulo = titulo,
                      fonte = fonte,
-                     tamanho_fonte = input$tamanho_texto)
+                     tamanho_fonte = input$tamanho_texto,
+                     rotulo_acompanha = input$rotulo_acompanha)
+   }
+   
+   if(input$Dados_Grupos == T){
+     X <- input$VariaveisX
+     Y <- input$VariaveisY
+     variavel_agrupamento <- input$grupos
+     grupos_selecionados <- input$grupos_selecionados
+     titulo = input$titulo_grafico
+     fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
+     
+     p1 <- gerador_grafico_3(base = dados,
+                             X = X,
+                             Y = Y,
+                             var_grupo = variavel_agrupamento,
+                             grupos = grupos_selecionados,
+                             titulo = titulo,
+                             fonte=fonte,
+                             tipos = input$tipo_grafico,
+                             tamanho_fonte = input$tamanho_texto)
+   }
     
     # p1 = p1 + theme()
     if(input$tipo_grafico == "linha"){
@@ -258,8 +317,9 @@ shinyServer(function(input, output,session) {
     if(input$tira_legenda == T){
       p1 = p1 + theme(legend.position = "none")
     }
-    
-    return(p1)
+   
+   p1 = p1 + scale_fill_brewer(type = "div",palette = "Dark2") + scale_color_brewer(type = "div",palette = "Dark2")
+  return(p1)
  })
  
  #### Tipo do gráfico ####
@@ -274,16 +334,19 @@ shinyServer(function(input, output,session) {
                          min = 0,
                          max = 10,
                          value = 1,
-                         round = F)
+                         round = F,
+                         step = 0.1)
    input3 <- sliderInput(inputId = "tamanho_texto",
                          label = "Qual tamanho dos rótulos numéricos?",
                          min = 0,
                          max = 10,
-                         value = 1,
-                         round = F)
+                         value = 4,
+                         round = F,
+                         step = 0.1)
    input4 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
+   input5 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
    
-   list(input1,input2,input3, input4)
+   list(input1,input2,input3, input4,input5)
  })
  #### Output do nome dos gráficos ####
  output$graficos_nome <- renderUI({
