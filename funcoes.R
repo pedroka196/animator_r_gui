@@ -242,62 +242,101 @@ gerador_grafico_2 <-function(base,variaveis,tipos,titulo,fonte,tamanho_fonte,rot
   return(p + tema)
 }
 
-gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanho_fonte){
+gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanho_fonte,rotulo_acompanha,proporcao){
+  
+  # abre a base
   base <- as.data.frame(base)
-  valores <- c(" ","(",")")
-  substituto <- c("_","_","_")
-  names(base) <- sub(pattern = " ",replacement = "_",x = names(base))
+  names(base) <- gsub(pattern = " ",replacement = "_",x = names(base))
   X <- gsub(pattern = " ",replacement = "_",x = X)
   Y <- gsub(pattern = " ",replacement = "_",x = Y)
   var_grupo <- gsub(pattern = " ",replacement = "_",x = var_grupo)
+  
+  if(!exists("rotulo_acompanha")){
+    rotulo_acompanha = T
+  }
   
   #var_grupo <- 
   #grupos <- gsub(pattern = " ",replacement = "_",x = grupos)
   
     ### !!sym
-  base_usada <- base %>%
-    filter((!!sym(var_grupo)) %in% grupos) %>%
-    mutate(Posicao = X) %>%
-    select(X,Y,var_grupo,Posicao)
+  if(rotulo_acompanha == T){
+    base_usada <- base %>%
+      filter(!!sym(var_grupo) %in% grupos) %>%
+      mutate(posicaoX = (!!sym(X)),posicaoY = ifelse((!!sym(Y))>0,1.1*(!!sym(Y)),0.9*(!!sym(Y)))) %>%
+      select(X,Y,var_grupo,posicaoX, posicaoY)
+      #ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+  }
+  if(rotulo_acompanha == F){
+    base_usada <- base %>%
+      filter(!!sym(var_grupo) %in% grupos) %>%
+      mutate(posicaoX = max((!!sym(X))),posicaoY = (!!sym(Y))) %>%
+      select(X,Y,var_grupo,posicaoX, posicaoY)
+  }
   
-  # base_usada[Y] <- as.numeric(base_usada[Y])
-  
-  
-  
-  #print()
+  if(proporcao == T & tipos == "barra"){
+    base_usada <- base_usada %>%
+      group_by(!!sym(X)) %>%
+      mutate(carambolas = !!sym(Y)/sum((!!sym(Y))))
+    
+    base_usada[Y] <- base_usada["carambolas"]
+    base_usada <- base_usada %>%
+      select(-carambolas)
+    
+    
+  }
   
   p <- base_usada %>%
     group_by((!!sym(var_grupo))) %>%
     ggplot(aes_string(x=X,y=Y,color=var_grupo,fill=var_grupo))
   
+  
+  #print()
+  
   ### Tipo de gráfico
   if(tipos == "linha"){
     p<-p+geom_line()
+    posicao_texto = "identity"
   }
   if(tipos == "ponto"){
     p<-p+geom_point()
+    posicao_texto = "identity"
   }
-  if(tipos =="barra"){
-    p<-p+geom_col()
+  if(tipos =="barra" & proporcao == F){
+    p<-p+geom_col(position = "stack")
+    posicao_texto = "stack"
+  }
+  if(tipos =="barra" & proporcao == T){
+    p<-p+geom_col(position = "fill")
+    posicao_texto = "fill"
+    #cor = "black"
   }
   
-  p <- p + geom_hline(yintercept = 0) +
-    geom_text(aes(y = (!!sym(Y)),
-                  label = round((!!sym(Y)),digits = 2),
-                  x = (!!sym(X))),
-              size = tamanho_fonte,
-              nudge_y = 0.01,
-              nudge_x = -0.5#,
+  p <- p + geom_hline(yintercept = 0)
+  if (proporcao == T & tipos == "barra") {
+    p = p + geom_text(aes(y = posicaoY,
+                  label = round(!!sym(Y),digits = 2),
+                  x = posicaoX),
+              size = tamanho_fonte,position = posicao_texto)
+    }
+  else{
+    p = p + geom_text(aes(y = posicaoY,
+                  label = round(!!sym(Y),digits = 2),
+                  x = posicaoX),
+              size = tamanho_fonte,position = posicao_texto
+              #nudge_y = 0.01,
+              #nudge_x = -0.5#,
               #hjust = "outward"
-              ) +
+              ) 
     
-    theme(#title = element_text(size=12),
-      legend.position = "bottom",
-      legend.title = element_blank(),
-      axis.title = element_blank())+
+    }
+  
+  p = p + theme(#title = element_text(size=12),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    axis.title = element_blank()) +
     coord_cartesian(clip="off")
   
-  tema <- theme(line = element_line(),
+  tema = theme(line = element_line(),
                 axis.line.x = element_line(),
                 axis.line.y = element_line(),
                 title = element_text(family = "Calibri Light",size = 14,hjust=0.5),
@@ -305,7 +344,7 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
                 plot.caption = element_text(family = "Cambria",hjust=0.5),
                 legend.key = element_blank())
   
-  p<-p+labs(title = titulo, caption=fonte)
+  p<-p+labs(title = titulo, caption = fonte) + tema
   
   
   

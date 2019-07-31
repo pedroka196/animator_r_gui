@@ -304,7 +304,9 @@ shinyServer(function(input, output,session) {
                              titulo = titulo,
                              fonte=fonte,
                              tipos = input$tipo_grafico,
-                             tamanho_fonte = input$tamanho_texto)
+                             tamanho_fonte = input$tamanho_texto,
+                             rotulo_acompanha = input$rotulo_acompanha,
+                             proporcao = input$escala_proporcional)
    }
     
     # p1 = p1 + theme()
@@ -314,9 +316,14 @@ shinyServer(function(input, output,session) {
     if(input$tipo_grafico == "ponto"){
       p1 = p1+geom_point(size=input$grafico_linha)
     }
+   if(input$tipo_grafico == "barra" & input$escala_proporcional == T){
+     p1 = p1+geom_col(position = "fill")
+   }
     if(input$tira_legenda == T){
       p1 = p1 + theme(legend.position = "none")
     }
+   
+   
    
    p1 = p1 + scale_fill_brewer(type = "div",palette = "Dark2") + scale_color_brewer(type = "div",palette = "Dark2")
   return(p1)
@@ -325,6 +332,8 @@ shinyServer(function(input, output,session) {
  #### Tipo do gráfico ####
  output$graficos_tipo <- renderUI({
    tipos <- c("linha","barra","ponto")
+   input6 <- NULL
+   #input$tipo_grafico = "linha"
    input1 <- radioButtons(inputId = "tipo_grafico",
                 label = "Qual o tipo do gráfico?",
                 choices = tipos,
@@ -343,10 +352,11 @@ shinyServer(function(input, output,session) {
                          value = 4,
                          round = F,
                          step = 0.1)
-   input4 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
-   input5 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
+  input4 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
+  input5 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
+  input6 <- checkboxInput("escala_proporcional","Participação em relação ao total?",value = T)
    
-   list(input1,input2,input3, input4,input5)
+   list(input1,input2,input3, input4,input5,input6)
  })
  #### Output do nome dos gráficos ####
  output$graficos_nome <- renderUI({
@@ -423,7 +433,7 @@ shinyServer(function(input, output,session) {
    # # 
    grafico <- grafico_gerado()
    # 
-   grafico_animado_p <- grafico + transition_reveal(Var_X)
+   grafico_animado_p <- grafico + transition_reveal(!!sym(input$VariaveisX))
    # 
    # animate(grafico_animado,fps = input$tempo_animado, nframe = )
    grafico_animado_p <- animate(grafico_animado_p,

@@ -47,4 +47,21 @@ p_educ <- dados_educ %>%
   theme(legend.title = element_blank(),legend.position = "bottom")+
   geom_text(aes(label = format(`Pago e RP Pago (IPCA)`/1000000,big.mark = ".",decimal.mark = ",",digits = 0)),position = "fill",size=3,vjust=1)
 
-p_educ
+names(dados_educ)
+
+p_educ <- gerador_grafico_3(base = dados_educ,
+                            X = "Ano",
+                            Y = "Pago e RP Pago IPCA",
+                            var_grupo = "Subfunção Ajustada",
+                            grupos = c("EDUCAÇÃO BÁSICA","ENSINO SUPERIOR"),
+                            tipos = "barra",
+                            titulo = "UAU",
+                            fonte = "UAU2",
+                            tamanho_fonte = 4,
+                            rotulo_acompanha = T,
+                            proporcao = T)
+
+p_educ+theme(text = element_text(color = "orange"))
+
+animate(grafico_animado_p,nframes = 25)
+base<-dados_educ
