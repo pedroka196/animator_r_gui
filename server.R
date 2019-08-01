@@ -1,4 +1,18 @@
-pacotes_necessarios <- c("ggplot2","extrafont","gganimate","gifski","tidyverse","zoo","xlsx","shiny","readxl","tidyverse","shinythemes","viridis","wesanderson","ggrepel")
+pacotes_necessarios <- c("ggplot2",
+                         "extrafont",
+                         "gganimate",
+                         "gifski",
+                         "tidyverse",
+                         "zoo",
+                         "xlsx",
+                         "shiny",
+                         "readxl",
+                         "tidyverse",
+                         "shinythemes",
+                         "viridis",
+                         "wesanderson",
+                         "ggrepel",
+                         "scales")
 
 lista_instalados <- pacotes_necessarios %in% rownames(installed.packages())
 
@@ -70,9 +84,24 @@ shinyServer(function(input, output,session) {
     }
     cat("\n\n\n",a,"\n\n")
     dados_csv <- as.data.frame(dados_csv)
+    
+    #dados_csv[input$VariaveisY] <- dados[input$VariaveisY]/input$divide_Y
     return(dados_csv)
     
     #return(dados_csv)
+  })
+  #### Função de leitura dos dados2 ####
+  dados_csv2 <- reactive({
+    dados <- dados_csv()
+    if(!is.null(dados)){
+      dados[input$VariaveisY] <- dados[input$VariaveisY]/input$divide_Y
+      
+    }
+    else{
+      dados <- NULL
+    }
+    
+    return(dados)
   })
   # Campo de selecao
   #### Seleção das variáveis X ####
@@ -117,6 +146,7 @@ shinyServer(function(input, output,session) {
     # Se dados nao sao nulos, mostra variaveis nulas
     input1 <- NULL
     input2 <- NULL
+    input3 <- NULL
     dados <- dados_csv()
     if(!is.null(dados)){
       if(input$Dados_Wide == T){
@@ -130,7 +160,12 @@ shinyServer(function(input, output,session) {
                                 label = "Selecione os grupos de dados",
                                 choices = names(dados),
                                 multiple = F)
+          
         }
+        input3 <- numericInput(inputId = "divide_Y",
+                               label = "Deseja mudar proporção?",
+                               min = 1,
+                               value = 1)
       }
       
       else{
@@ -143,10 +178,14 @@ shinyServer(function(input, output,session) {
                                label = "Qual o tipo da chave",
                                choices = escolhas,
                                inline = T)
+        input3 <- numericInput(inputId = "divide_Y",
+                               label = "Deseja mudar proporção?",
+                               min = 1,
+                               value = 1)
       }
       
     }
-    list(input1,input2)
+    list(input1,input2,input3)
   })
   
   #### Output grupos ####
@@ -227,7 +266,7 @@ shinyServer(function(input, output,session) {
   #### Tabela de dados wide ####
   output$contents2 <- renderTable({
     tabela1 <- NULL
-    dados <- dados_csv()
+    dados <- dados_csv2()
     if(!is.null(dados)){
       dados_graph <- separador(dados,input$VariaveisX,input$Dados_Wide)
       tabela1 <- rbind.data.frame(head(dados_graph),tail(dados_graph))
@@ -245,7 +284,7 @@ shinyServer(function(input, output,session) {
   
   output$contents <- renderTable({
     tabela1 <- NULL
-    dados <- dados_csv()
+    dados <- dados_csv2()
     if(!is.null(dados)){
       tabela1 <- rbind.data.frame(head(dados),tail(dados))
       # tabela2 <- "-------------------------------------"
@@ -270,20 +309,20 @@ shinyServer(function(input, output,session) {
   
   #### Função que gera gráfico ####
   grafico_gerado <- reactive({
-    dados <- dados_csv()
+    dados <- dados_csv2()
+    
     p1 <- NULL
-    if(!is.null(dados)){
+    if(!is.null(dados) & length(input$VariaveisX)>0 & length(input$VariaveisY)>0){
       dados_graph <- separador(dados, input$VariaveisX,input$Dados_Wide)
-    
-    
-    if(input$Dados_Grupos == F){
-      variaveis <- input$VariaveisY
-      titulo = input$titulo_grafico
-      fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
+      
+      if(input$Dados_Grupos == F){
+        variaveis <- input$VariaveisY
+        titulo = input$titulo_grafico
+        fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
       
       # gerador_grafico(X = dadosX,Y=dadosY,tipos = "linha",nomes = "UAU")
       
-      p1 <- gerador_grafico_2(base = dados_graph,
+        p1 <- gerador_grafico_2(base = dados_graph,
                               variaveis = variaveis,
                               tipos = input$tipo_grafico,
                               titulo = titulo,
@@ -293,26 +332,26 @@ shinyServer(function(input, output,session) {
                               proporcao = input$escala_proporcional)
     }
     
-    if(input$Dados_Grupos == T){
-      X <- input$VariaveisX
-      Y <- input$VariaveisY
-      variavel_agrupamento <- input$grupos
-      grupos_selecionados <- input$grupos_selecionados
-      titulo = input$titulo_grafico
-      fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
-      
-      p1 <- gerador_grafico_3(base = dados,
-                              X = X,
-                              Y = Y,
-                              var_grupo = variavel_agrupamento,
-                              grupos = grupos_selecionados,
-                              titulo = titulo,
-                              fonte=fonte,
-                              tipos = input$tipo_grafico,
-                              tamanho_fonte = input$tamanho_texto,
-                              rotulo_acompanha = input$rotulo_acompanha,
-                              proporcao = input$escala_proporcional)
-    }
+      if(input$Dados_Grupos == T & length(input$grupos_selecionados)>0){
+        X <- input$VariaveisX
+        Y <- input$VariaveisY
+        variavel_agrupamento <- input$grupos
+        grupos_selecionados <- input$grupos_selecionados
+        titulo = input$titulo_grafico
+        fonte = paste("Fonte:",input$fonte_grafico,sep = " ")
+        
+        p1 <- gerador_grafico_3(base = dados,
+                                X = X,
+                                Y = Y,
+                                var_grupo = variavel_agrupamento,
+                                grupos = grupos_selecionados,
+                                titulo = titulo,
+                                fonte=fonte,
+                                tipos = input$tipo_grafico,
+                                tamanho_fonte = input$tamanho_texto,
+                                rotulo_acompanha = input$rotulo_acompanha,
+                                proporcao = input$escala_proporcional)
+      }
     
     # p1 = p1 + theme()
     if(input$tipo_grafico == "linha"){
@@ -327,12 +366,19 @@ shinyServer(function(input, output,session) {
     if(input$tira_legenda == T){
       p1 = p1 + theme(legend.position = "none")
     }
+      
+      p1 <- p1 + scale_y_continuous(labels = comma_format(big.mark = ".",decimal.mark = ","))
     
     
-    
-    p1 = p1 + 
-      scale_fill_brewer(type = "div",palette = "Dark2") + 
-      scale_color_brewer(type = "div",palette = "Dark2")
+    ### Temas ###
+    p1 = p1 + theme(legend.spacing.x = unit(1.0, 'cm'),
+                    title = element_text(size = input$tamanho_titulo,family = "Calibri"),
+                    legend.text = element_text(size = input$tamanho_legenda),
+                    axis.text = element_text(size = input$tamanho_legenda),
+                    axis.line = element_line(colour = "#858585"),
+                    plot.background = element_rect(fill = "white"),
+                    panel.background = element_rect(fill = "white",colour = NULL),
+                    panel.grid.major.y = element_line(colour = "gray85"))
     }
     return(p1)
   })
@@ -340,7 +386,7 @@ shinyServer(function(input, output,session) {
   #### Tipo do gráfico ####
   output$graficos_tipo <- renderUI({
     tipos <- c("linha","barra","ponto","area")
-    input6 <- NULL
+    # input6 <- NULL
     #input$tipo_grafico = "linha"
     input1 <- radioButtons(inputId = "tipo_grafico",
                            label = "Qual o tipo do gráfico?",
@@ -360,11 +406,25 @@ shinyServer(function(input, output,session) {
                           value = 4,
                           round = F,
                           step = 0.1)
-    input4 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
-    input5 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
-    input6 <- checkboxInput("escala_proporcional","Participação em relação ao total?",value = T)
+    input4 <- sliderInput(inputId = "tamanho_legenda",
+                          label = "Qual tamanho da legenda?",
+                          min = 0,
+                          max = 20,
+                          value = 10,
+                          round = F,
+                          step = 0.1)
+    input5 <- sliderInput(inputId = "tamanho_titulo",
+                          label = "Qual tamanho do título?",
+                          min = 0,
+                          max = 20,
+                          value = 15,
+                          round = F,
+                          step = 0.1)
+    input6 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
+    input7 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
+    input8 <- checkboxInput("escala_proporcional","Participação em relação ao total?",value = T)
     
-    list(input1,input2,input3, input4,input5,input6)
+    list(input1,input2,input3, input4,input5,input6,input7,input8)
   })
   #### Output do nome dos gráficos ####
   output$graficos_nome <- renderUI({
@@ -421,7 +481,7 @@ shinyServer(function(input, output,session) {
     
     grafico_animado_p <- animate(grafico_animado_p,
                                  fps = input$tempo_animado,
-                                 nframe=input$tempo_animado*input$quadros_totais,
+                                 nframe=input$tempo_animado*input$quadros_totais+input$tempo_animado*input$tempo_parado,
                                  end_pause = input$tempo_animado*input$tempo_parado,
                                  width=input$tamanho_X,
                                  height=input$tamanho_Y)

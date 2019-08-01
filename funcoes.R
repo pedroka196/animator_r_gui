@@ -166,53 +166,74 @@ gerador_grafico <-function(Base,X,Y,tipos,nome,grupos){
   #       axis.title = element_blank())+
   #     coord_cartesian(clip="off")
 }
+gerador_cores <- function(n){
+  cores<-c("#0C648C","#D2988F","#85AEC3","#BB615C","#CD8E86","#C98B87","#9ABBCE","#d73027",
+           "#fdae61","#5aae61")
+  if(!is.null(n)){
+    return(cores[1:n])
+  }
+  else{
+    return(NULL)
+  }
+  
+  
+  
+}
 
 
 gerador_grafico_2 <-function(base,
                              variaveis,
-                             tipos,titulo,
+                             tipos,
+                             titulo,
                              fonte,
                              tamanho_fonte,
                              rotulo_acompanha,
-                             proporcao){
-  cores<-c("#0C648C","#D2988F","#85AEC3","#BB615C","#CD8E86","#C98B87","#9ABBCE","#d73027",
-           "#fdae61","#5aae61")
-  # Lista de argumentos
-  # if(exists("base$chaves")){
-  #   cat("Base positiva e operante\n\n")
-  # }
-  # else{
-  #   stop("Essa base não tem chave")
-  # }
+                             proporcao,
+                             porcento){
+  # cores<-c("#0C648C","#D2988F","#85AEC3","#BB615C","#CD8E86","#C98B87","#9ABBCE","#d73027",
+           # "#fdae61","#5aae61")
   
-  cores_usadas <- cores[length(variaveis)]
+  
+  if(!exists("porcento")){
+    porcento = T
+  }
   if(!exists("rotulo_acompanha")){
     rotulo_acompanha = T
   }
   
-  
+  # numero_de_cores <- length(variaveis)
   #if(variaveis %in% unique(base$chaves)){
   base_usada <- base %>%
     filter(chaves %in% variaveis)
-  # }
-  # else(
-  #   stop("variaveis não existem")
-  # )
+  
+  numero_cores_usadas <- length(variaveis)
+
   classe_Var_X <-class(base_usada$Var_X)
   if(classe_Var_X[1] == "POSIXct" | classe_Var_X[1] == "POSIXt"){
     base_usada$Var_X <- as.Date(base_usada$Var_X)
   }
   
+  base_usada <- base_usada %>%
+    group_by(Var_X,chaves) %>%
+    summarise(Valores = sum(Valores),
+              posicaoX = max(Var_X),
+              posicaoY = max(Valores))
+  
+  
   if(rotulo_acompanha == T){
-    p<-base_usada %>%
-      mutate(posicaoX = Var_X,posicaoY = ifelse(Valores>0,1.1*Valores,0.9*Valores)) %>%
-      ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+    base_usada <- base_usada %>%
+      mutate(posicaoX = posicaoX,
+             posicaoY = ifelse(Valores>0,1.1*Valores,0.9*Valores))
   }
-  else{
-    p<-base_usada %>%
-      mutate(posicaoX = max(Var_X),posicaoY = ifelse(Valores>0,Valores+0.1*Valores,Valores-0.1*Valores)) %>%
-      ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
+  if(rotulo_acompanha == F){
+    base_usada <- base_usada %>%
+      mutate(posicaoX = max(posicaoX),
+             posicaoY = ifelse(Valores>0,1.1*Valores,0.9*Valores))
+     
   }
+  
+  p <- base_usada %>%
+    ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
   
   
   #for(i in length(tipos)){
@@ -241,10 +262,16 @@ gerador_grafico_2 <-function(base,
     posicao_texto = "fill"
   }
   
-  p <- p + geom_hline(yintercept = 0)
+  existe_negativo <- base_usada$Valores < 0
+  
+  if(T %in% existe_negativo){
+    p <- p + geom_hline(yintercept = 0)
+  }
+  
+  # p <- p + geom_hline(yintercept = 0)
   if (proporcao == T & (tipos == "barra" | tipos == "area")) {
     p = p + geom_text(aes(y = posicaoY,
-                          label = format(round(Valores,digits = 2),
+                          label = format(round(Valores*100,digits = 2),
                                          big.mark = ".",
                                          decimal.mark = ","),
                           x = posicaoX),
@@ -280,7 +307,7 @@ gerador_grafico_2 <-function(base,
   tema <- theme(line = element_line(),
                 axis.line.x = element_line(),
                 axis.line.y = element_line(),
-                title = element_text(family = "Calibri Light",size = 14,hjust=0.5),
+                title = element_text(family = "Calibri",size = 14,hjust=0.5),
                 plot.margin = unit(c(0.5,1,0.5,0.5),"cm"),
                 plot.caption = element_text(family = "Cambria",hjust=0.5),
                 legend.key = element_blank())
@@ -288,7 +315,10 @@ gerador_grafico_2 <-function(base,
   p<-p+labs(title = titulo, caption=fonte)
   
   #p <- p + scale_fill_manual(cores_usadas) + scale_color_manual(cores_usadas)
-  p = p + tema
+  p = p +
+    tema +
+    scale_color_manual(values = gerador_cores(numero_cores_usadas))+
+    scale_fill_manual(values = gerador_cores(numero_cores_usadas))
   # p2<-p+scale_color_manual(values=cores)
   return(p + tema)
 }
@@ -305,6 +335,10 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   if(!exists("rotulo_acompanha")){
     rotulo_acompanha = T
   }
+  if(!exists("porcento")){
+    porcento = T
+  }
+  
   
   #var_grupo <- 
   #grupos <- gsub(pattern = " ",replacement = "_",x = grupos)
@@ -346,12 +380,15 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   base_usada <- base_usada %>%
     select(-carambolas)
   
+  base_usada <- base_usada %>%
+    mutate(legenda = paste(!!sym(var_grupo),format(!!sym(Y),big.mark = ".",decimal.mark = ",")))
+  
   p <- base_usada %>%
     ggplot(aes_string(x=X,y=Y,color=var_grupo,fill=var_grupo))
   
+  numero_cores_usadas <- length(grupos)
   
-  #print()
-  
+
   ### Tipo de gráfico
   if(tipos == "linha"){
     p<-p+geom_line()
@@ -382,11 +419,17 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
     #cor = "black"
   }
   
-  p <- p + geom_hline(yintercept = 0)
+  existe_negativo <- base_usada[Y] < 0
+  
+  if(T %in% existe_negativo){
+    p <- p + geom_hline(yintercept = 0)
+  }
+  
+  
   if ((tipos == "area" | tipos == "barra") & proporcao == T) {
     cat("Função funcionou \n\n\n")
     p = p + geom_text(aes(y = posicaoY,
-                          label = paste0(format(round(!!sym(Y),digits = 2),
+                          label = paste0(format(round(!!sym(Y)*100,digits = 2),
                                          digits = 2,
                                          big.mark = ".",
                                          decimal.mark = ","),"%"),
@@ -399,7 +442,10 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   }
   else{
     p = p + geom_text(aes(y = posicaoY,
-                          label = round(!!sym(Y),digits = 2),
+                          label = posicaoY,#format(round(!!sym(Y),digits = 2),
+                          #                digits = 2,
+                          #                big.mark = ".",
+                          #                decimal.mark = ","),
                           x = posicaoX),
                       size = tamanho_fonte,
                       position = posicao_texto
@@ -424,7 +470,10 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
                plot.caption = element_text(family = "Cambria",hjust=0.5),
                legend.key = element_blank())
   
-  p<-p+labs(title = titulo, caption = fonte) + tema
+  p<-p+labs(title = titulo, caption = fonte) +
+    tema +
+    scale_color_manual(values = gerador_cores(numero_cores_usadas)) +
+    scale_fill_manual(values = gerador_cores(numero_cores_usadas))
   
   
   

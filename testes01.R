@@ -89,7 +89,13 @@ grafico_raf <- gerador_grafico_2(base = dados_grupo,
                                  rotulo_acompanha = T,
                                  proporcao = F)
 
-grafico_raf+theme(axis.line = element_line(colour = "#858585"))
+grafico_raf+theme(axis.line = element_line(colour = "#858585"),
+                  plot.background = element_rect(fill = "white"),
+                  panel.background = element_rect(fill = "white",colour = NULL),
+                  panel.grid.major.y = element_line(colour = "gray85"))+
+  scale_color_manual(values = gerador_cores(4))+
+  scale_y_continuous(labels = percent)
+
 
 animacao_grafico_raf <- grafico_raf + transition_reveal(Var_X)
 
@@ -112,4 +118,6 @@ grafico_cti <- gerador_grafico_3(base = dados_cti,
                                  proporcao = T,
                                  titulo = "uheuheu",
                                  fonte = "asuhaus",
-                                 tamanho_fonte = 2)
+                                 tamanho_fonte = 2,porcento = T)
+
+grafico_cti + scale_y_continuous(labels = comma_format(big.mark = ".",decimal.mark = ","))
