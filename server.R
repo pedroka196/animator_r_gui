@@ -12,7 +12,8 @@ pacotes_necessarios <- c("ggplot2",
                          "viridis",
                          "wesanderson",
                          "ggrepel",
-                         "scales")
+                         "scales",
+                         "utf8")
 
 lista_instalados <- pacotes_necessarios %in% rownames(installed.packages())
 
@@ -37,7 +38,7 @@ lapply(pacotes_necessarios, require,character.only = TRUE)
 # library(ggplot2)
 
 
-source("funcoes.R")
+source("funcoes.R",encoding = "utf-8")
 # Define server logic required to draw a histogram
 shinyServer(function(input, output,session) {
   #### Funcao para saber se dados sao XLSX ou CSV ####
@@ -329,7 +330,8 @@ shinyServer(function(input, output,session) {
                               fonte = fonte,
                               tamanho_fonte = input$tamanho_texto,
                               rotulo_acompanha = input$rotulo_acompanha,
-                              proporcao = input$escala_proporcional)
+                              proporcao = input$escala_proporcional,
+                              porcento = input$porcentagem)
     }
     
       if(input$Dados_Grupos == T & length(input$grupos_selecionados)>0){
@@ -350,7 +352,8 @@ shinyServer(function(input, output,session) {
                                 tipos = input$tipo_grafico,
                                 tamanho_fonte = input$tamanho_texto,
                                 rotulo_acompanha = input$rotulo_acompanha,
-                                proporcao = input$escala_proporcional)
+                                proporcao = input$escala_proporcional,
+                                porcento = input$porcentagem)
       }
     
     # p1 = p1 + theme()
@@ -379,7 +382,15 @@ shinyServer(function(input, output,session) {
                     plot.background = element_rect(fill = "white"),
                     panel.background = element_rect(fill = "white",colour = NULL),
                     panel.grid.major.y = element_line(colour = "gray85"))
+    
+    if(input$porcentagem == F){
+      p1 = p1+scale_y_continuous(labels = comma_format(big.mark = ".",decimal.mark = ","))
     }
+    else{
+      p1 = p1+scale_y_continuous(labels = percent)
+    }
+    }
+    
     return(p1)
   })
   
@@ -423,8 +434,9 @@ shinyServer(function(input, output,session) {
     input6 <- checkboxInput("tira_legenda","Remover legenda?",value = F)
     input7 <- checkboxInput("rotulo_acompanha","Rótulo deve acompanhar dados?",value = T)
     input8 <- checkboxInput("escala_proporcional","Participação em relação ao total?",value = T)
+    input9 <- checkboxInput("porcentagem","Dados percentuais",value = F)
     
-    list(input1,input2,input3, input4,input5,input6,input7,input8)
+    list(input1,input2,input3,input4,input5,input6,input7,input8,input9)
   })
   #### Output do nome dos gráficos ####
   output$graficos_nome <- renderUI({

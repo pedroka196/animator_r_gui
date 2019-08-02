@@ -87,7 +87,7 @@ grafico_raf <- gerador_grafico_2(base = dados_grupo,
                                  fonte = "EUSJKK",
                                  tamanho_fonte = 2,
                                  rotulo_acompanha = T,
-                                 proporcao = F)
+                                 proporcao = F,porcento = T)
 
 grafico_raf+theme(axis.line = element_line(colour = "#858585"),
                   plot.background = element_rect(fill = "white"),
@@ -113,11 +113,19 @@ grafico_cti <- gerador_grafico_3(base = dados_cti,
                                  Y = nomes_cti[4],
                                  tipos = "linha",
                                  var_grupo = nomes_cti[2],
-                                 grupos = "DESENVOLVIMENTO CIENTÍFICO",
-                                 rotulo_acompanha = T,
-                                 proporcao = T,
-                                 titulo = "uheuheu",
-                                 fonte = "asuhaus",
-                                 tamanho_fonte = 2,porcento = T)
+                                 grupos = c("DESENVOLVIMENTO CIENTÍFICO","DESENVOLVIMENTO TECNOLÓGICO E ENGENHARIA"),
+                                 rotulo_acompanha = F,
+                                 proporcao = F,
+                                 titulo = "Gráfico",
+                                 fonte = "Uai",
+                                 tamanho_fonte = 3,
+                                 porcento = F)
 
-grafico_cti + scale_y_continuous(labels = comma_format(big.mark = ".",decimal.mark = ","))
+# grafico_cti + scale_y_continuous(labels = comma_format(big.mark = ".",decimal.mark = ","))
+grafico_cti <- grafico_cti + geom_segment(aes(xend=max(dados_cti$Ano),yend = Pago_e_RP_Pago_IPCA),linetype ="dashed")
+anima_cti <- grafico_cti + transition_reveal(Ano)
+# anima_cti <- grafico_cti + t
+anima_cti$data$legenda <- gsub(pattern = "Í",replacement = "Í",x = anima_cti$data$legenda)
+
+animate(anima_cti,nframes = 4*12,fps = 12,end_pause = 12,width = 1000,height = 600)
+

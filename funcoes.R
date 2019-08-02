@@ -126,7 +126,7 @@ gerador_grafico <-function(Base,X,Y,tipos,nome,grupos){
     nome_var_y <-names(valores[i+1])
     
     if(tipos[i]=="linha"){
-      p<-p+geom_line(data=valores,aes_string(y=nome_var_y))
+      p<-p+geom_path(data=valores,aes_string(y=nome_var_y))
       
     }
     if(tipos[i]=="ponto"){
@@ -217,7 +217,8 @@ gerador_grafico_2 <-function(base,
     group_by(Var_X,chaves) %>%
     summarise(Valores = sum(Valores),
               posicaoX = max(Var_X),
-              posicaoY = max(Valores))
+              posicaoY = max(Valores)) %>%
+    ungroup(Var_X,chaves)
   
   
   if(rotulo_acompanha == T){
@@ -227,10 +228,28 @@ gerador_grafico_2 <-function(base,
   }
   if(rotulo_acompanha == F){
     base_usada <- base_usada %>%
-      mutate(posicaoX = max(posicaoX),
+      mutate(posicaoX = max(Var_X),
              posicaoY = ifelse(Valores>0,1.1*Valores,0.9*Valores))
      
   }
+  #### Tipos de legenda ####
+  if ((tipos == "area" | tipos == "barra") & proporcao == T) {
+    base_usada <- base_usada %>%
+      mutate(legenda = paste0(chaves,"\n",format(Valores*100,big.mark = ".",decimal.mark = ",",digits = 1),"%"))
+  }
+  else{
+    if(porcento == T){
+      base_usada <- base_usada %>%
+        mutate(legenda = paste0(chaves,"\n",format(Valores*100,big.mark = ".",decimal.mark = ",",digits = 1),"%"))
+    }
+    else{
+      base_usada <- base_usada %>%
+        mutate(legenda = paste0(chaves,"\n",format(Valores,big.mark = ".",decimal.mark = ",",digits = 2)))
+    }
+  }
+  
+  base_usada$legenda <- iconv(base_usada$legenda, from = "UTF-8", to="ASCII//TRANSLIT")
+
   
   p <- base_usada %>%
     ggplot(aes(x=Var_X,color=chaves,fill=chaves,y=Valores,group=chaves))
@@ -238,7 +257,7 @@ gerador_grafico_2 <-function(base,
   
   #for(i in length(tipos)){
   if(tipos == "linha"){
-    p<-p+geom_line()
+    p<-p+geom_path()
     posicao_texto = "identity"
   }
   if(tipos == "ponto"){
@@ -271,33 +290,24 @@ gerador_grafico_2 <-function(base,
   # p <- p + geom_hline(yintercept = 0)
   if (proporcao == T & (tipos == "barra" | tipos == "area")) {
     p = p + geom_text(aes(y = posicaoY,
-                          label = format(round(Valores*100,digits = 2),
-                                         big.mark = ".",
-                                         decimal.mark = ","),
-                          x = posicaoX),
+                          label = legenda,
+                          x = posicaoX,
+                          fontface = "bold"),
                       color = "#000000",
                       size = tamanho_fonte,
                       position = position_fill(vjust=0.5)#,
                       # vjust = 0.5
     )
   }
-  else{
+  else {
     p = p + geom_text(aes(y = posicaoY,
-                          label = format(round(Valores,digits = 2),
-                                         big.mark = ".",
-                                         decimal.mark = ","),
-                          x = posicaoX),
+                          label = legenda,
+                          x = posicaoX,
+                          fontface = "bold"),
                       size = tamanho_fonte,
                       position = posicao_texto)
   }
-  # geom_text(aes(y = posicaoY,
-  #                 label = format(round(Valores,digits = 2),
-  #                                big.mark = ".",
-  #                                decimal.mark = ","),
-  #                 x = posicaoX),
-  #             size = tamanho_fonte,
-  #             nudge_y = 0.1,
-  #             nudge_x = +1) +
+  
   p = p + theme(#title = element_text(size=12),
       legend.position = "bottom",
       legend.title = element_blank(),
@@ -323,7 +333,18 @@ gerador_grafico_2 <-function(base,
   return(p + tema)
 }
 
-gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanho_fonte,rotulo_acompanha,proporcao){
+gerador_grafico_3 <-function(base,
+                             X,
+                             Y,
+                             var_grupo,
+                             grupos,
+                             tipos,
+                             titulo,
+                             fonte,
+                             tamanho_fonte,
+                             rotulo_acompanha,
+                             proporcao,
+                             porcento){
   
   # abre a base
   base <- as.data.frame(base)
@@ -336,7 +357,7 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
     rotulo_acompanha = T
   }
   if(!exists("porcento")){
-    porcento = T
+    porcento = F
   }
   
   
@@ -361,14 +382,15 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   if(proporcao == T & (tipos == "area" | tipos == "barra")){
     base_usada <- base_usada %>%
       group_by(!!sym(X)) %>%
-      mutate(carambolas = !!sym(Y)/sum((!!sym(Y))))
+      mutate(carambolas = !!sym(Y)/sum((!!sym(Y)))) %>% 
+ 
     
     base_usada[Y] <- base_usada["carambolas"]
     base_usada <- base_usada %>%
       select(-carambolas)
     
-    
   }
+
   
   base_usada <- base_usada %>%
     group_by((!!sym(X)),(!!sym(var_grupo))) %>%
@@ -378,10 +400,26 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   
   base_usada[Y] <- base_usada["carambolas"]
   base_usada <- base_usada %>%
-    select(-carambolas)
+    select(-carambolas) %>%
+    ungroup((!!sym(X)),(!!sym(var_grupo)))
   
-  base_usada <- base_usada %>%
-    mutate(legenda = paste(!!sym(var_grupo),format(!!sym(Y),big.mark = ".",decimal.mark = ",")))
+  # Tipo de legenda - Considera porcentagem
+  if ((tipos == "area" | tipos == "barra") & proporcao == T) {
+      base_usada <- base_usada %>%
+        mutate(legenda = paste(!!sym(var_grupo),"\n",format(!!sym(Y)*100,big.mark = ".",decimal.mark = ",",digits = 1),"%"))
+  }
+  else{
+    if(porcento == T){
+      base_usada <- base_usada %>%
+        mutate(legenda = paste(!!sym(var_grupo),"\n",format(!!sym(Y)*100,big.mark = ".",decimal.mark = ",",digits = 1),"%"))
+    }
+    else{
+      base_usada <- base_usada %>%
+        mutate(legenda = paste(!!sym(var_grupo),"\n",format(!!sym(Y),big.mark = ".",decimal.mark = ",",digits = 2)))
+    }
+  }
+  
+  base_usada$legenda <- iconv(base_usada$legenda, from = "UTF-8", to="ASCII//TRANSLIT")
   
   p <- base_usada %>%
     ggplot(aes_string(x=X,y=Y,color=var_grupo,fill=var_grupo))
@@ -391,7 +429,7 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
 
   ### Tipo de gráfico
   if(tipos == "linha"){
-    p<-p+geom_line()
+    p<-p+geom_path()
     posicao_texto = "identity"
   }
   if(tipos == "ponto"){
@@ -421,32 +459,36 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   
   existe_negativo <- base_usada[Y] < 0
   
+  #### Linha horizontal ####
   if(T %in% existe_negativo){
     p <- p + geom_hline(yintercept = 0)
   }
+# x_maximo <- max(base_usada$posicaoX)
+#   if(rotulo_acompanha == F){
+#     p <- p + geom_segment(data = base_usada,aes(xend = max(posicaoX),
+#                               yend = posicaoX),
+#                           linetype = "dotted")
+#   }
   
   
+  #### Texto ####
   if ((tipos == "area" | tipos == "barra") & proporcao == T) {
     cat("Função funcionou \n\n\n")
     p = p + geom_text(aes(y = posicaoY,
-                          label = paste0(format(round(!!sym(Y)*100,digits = 2),
-                                         digits = 2,
-                                         big.mark = ".",
-                                         decimal.mark = ","),"%"),
-                          x = posicaoX),
+                          label = legenda,
+                          x = posicaoX,
+                          fontface = "bold"),
                       color = "#000000",
                       size = tamanho_fonte,
-                      position = position_fill(vjust=0.5)#,
+                      position = position_fill(vjust=0.5)
                       # vjust = 0.5
                       )
   }
   else{
     p = p + geom_text(aes(y = posicaoY,
-                          label = posicaoY,#format(round(!!sym(Y),digits = 2),
-                          #                digits = 2,
-                          #                big.mark = ".",
-                          #                decimal.mark = ","),
-                          x = posicaoX),
+                          label = legenda,#format(round(!!sym(Y),digits = 2),
+                          x = posicaoX,
+                          fontface = "bold"),
                       size = tamanho_fonte,
                       position = posicao_texto
                       #nudge_y = 0.01,
@@ -465,7 +507,7 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
   tema = theme(line = element_line(),
                axis.line.x = element_line(),
                axis.line.y = element_line(),
-               title = element_text(family = "Calibri Light",size = 14,hjust=0.5),
+               title = element_text(family = "Calibri",size = 14,hjust=0.5,face = "bold"),
                plot.margin = unit(c(0.5,1,0.5,0.5),"cm"),
                plot.caption = element_text(family = "Cambria",hjust=0.5),
                legend.key = element_blank())
@@ -474,8 +516,32 @@ gerador_grafico_3 <-function(base,X,Y,var_grupo,grupos,tipos,titulo,fonte,tamanh
     tema +
     scale_color_manual(values = gerador_cores(numero_cores_usadas)) +
     scale_fill_manual(values = gerador_cores(numero_cores_usadas))
-  
-  
+
+
   
   return(p)
 }
+
+subs_acento <- function(string) {
+  string <- as.character(string)
+  unwanted_array = list('Š'='S', 'š'='s', 'Ž'='Z', 'ž'='z', 'À'='A', 'Á'='A', 'Â'='A', 'Ã'='A', 'Ä'='A', 'Å'='A', 'Æ'='A', 'Ç'='C', 'È'='E', 'É'='E',
+                        'Ê'='E', 'Ë'='E', 'Ì'='I', 'Í'='I', 'Î'='I', 'Ï'='I', 'Ñ'='N', 'Ò'='O', 'Ó'='O', 'Ô'='O', 'Õ'='O', 'Ö'='O', 'Ø'='O', 'Ù'='U',
+                        'Ú'='U', 'Û'='U', 'Ü'='U', 'Ý'='Y', 'Þ'='B', 'ß'='Ss', 'à'='a', 'á'='a', 'â'='a', 'ã'='a', 'ä'='a', 'å'='a', 'æ'='a', 'ç'='c',
+                        'è'='e', 'é'='e', 'ê'='e', 'ë'='e', 'ì'='i', 'í'='i', 'î'='i', 'ï'='i', 'ð'='o', 'ñ'='n', 'ò'='o', 'ó'='o', 'ô'='o', 'õ'='o',
+                        'ö'='o', 'ø'='o', 'ù'='u', 'ú'='u', 'û'='u', 'ý'='y', 'ý'='y', 'þ'='b', 'ÿ'='y')
+  
+  # chartr(paste(names(unwanted_array), collapse=''),
+  #        paste(unwanted_array, collapse=''),
+  #        string)
+  
+  for(i in 1:length(unwanted_array)){
+    resultado <- gsub(pattern = names(unwanted_array[[i]]),replacement = unwanted_array[[i]],x=string)
+  }
+  
+  # string <- as.character(string)
+    return(resultado)
+}
+
+# subs_acento(base_usada$legenda)
+
+# iconv(base_usada$legenda, from = "UTF-8", to="ASCII//TRANSLIT")

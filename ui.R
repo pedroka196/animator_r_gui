@@ -9,6 +9,7 @@
 
 library(shiny)
 library(shinythemes)
+library(utf8)
 
 
 # Define UI for application that draws a histogram
